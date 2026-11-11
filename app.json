@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "FridgeAlert",
+    "slug": "fridgealert",
+    "version": "0.1.0",
+    "scheme": "fridgealert",
+    "platforms": ["android"],
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "android": {
+      "package": "com.monkeyfonkey1.fridgealert"
+    },
+    "plugins": ["expo-router", "expo-sqlite", "expo-notifications"]
+  }
+}

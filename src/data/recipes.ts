@@ -1,0 +1,236 @@
+import type { Recipe, RecipeIngredient, RecipeUnit } from '../models/recipe';
+
+function ingredient(id: RecipeIngredient['id'], amount: string): RecipeIngredient;
+function ingredient(id: RecipeIngredient['id'], quantity: number, unit: RecipeUnit): RecipeIngredient;
+function ingredient(id: RecipeIngredient['id'], amount: string | number, unit?: RecipeUnit): RecipeIngredient {
+  if (typeof amount === 'string') return { id, amount };
+  if (!unit) throw new Error('Ingredientul numeric trebuie să aibă unitate.');
+  return { id, amount: { quantity: amount, unit } };
+}
+
+export const recipes: Recipe[] = [
+  {
+    id: 'omleta-cu-branza',
+    name: 'Omletă cu brânză',
+    description: 'Un mic dejun cald, gata într-o singură tigaie.',
+    minutes: 12, difficulty: 'Ușoară', servings: 1,
+    required: [ingredient('egg', 2, 'buc.'), ingredient('cheese', 50, 'g')],
+    optional: [ingredient('butter', 1, 'linguriță'), ingredient('pepper', 'după gust')],
+    steps: [
+      'Bate ouăle într-un bol și sfărâmă brânza separat.',
+      'Toarnă ouăle într-o tigaie antiaderentă la foc mediu. Dacă ai unt, topește-l în tigaie înainte.',
+      'Presară brânza și, dacă dorești, piper. Gătește până când ouăle sunt închegate, apoi pliază omleta.',
+    ],
+  },
+  {
+    id: 'paste-cu-rosii',
+    name: 'Paste cu sos de roșii',
+    description: 'Paste simple cu un sos de roșii încălzit în tigaie.',
+    minutes: 20, difficulty: 'Ușoară', servings: 2,
+    required: [ingredient('pasta', 180, 'g'), ingredient('passata', 250, 'g')],
+    optional: [ingredient('garlic', 1, 'cățel'), ingredient('basil', 'câteva frunze'), ingredient('salt', 'după gust')],
+    water: 'Pentru fierberea pastelor.',
+    steps: [
+      'Fierbe pastele în apă conform timpului de pe ambalaj. Dacă dorești, sărează apa.',
+      'Încălzește sosul de roșii 5–7 minute. Dacă ai usturoi, mărunțește-l și pune-l direct în sos.',
+      'Scurge pastele, amestecă-le cu sosul și adaugă busuioc, dacă ai.',
+    ],
+  },
+  {
+    id: 'salata-de-legume',
+    name: 'Salată de legume',
+    description: 'O salată crocantă cu roșii, castravete și frunze verzi.',
+    minutes: 10, difficulty: 'Ușoară', servings: 2,
+    required: [ingredient('tomato', 2, 'buc.'), ingredient('cucumber', 1, 'buc.'), ingredient('lettuce', 100, 'g')],
+    optional: [ingredient('oil', 1, 'lingură'), ingredient('lemon', 0.5, 'buc.'), ingredient('salt', 'după gust')],
+    steps: [
+      'Spală legumele, rupe frunzele și taie roșiile și castravetele.',
+      'Amestecă legumele într-un bol. Dacă le ai, adaugă ulei, suc de lămâie și puțină sare.',
+    ],
+  },
+  {
+    id: 'sandvis-cu-sunca',
+    name: 'Sandviș cu șuncă și cașcaval',
+    description: 'Pâine rumenită și cașcaval topit, fără aparat de sandvișuri.',
+    minutes: 10, difficulty: 'Ușoară', servings: 1,
+    required: [ingredient('bread', 2, 'felie'), ingredient('ham', 2, 'felie'), ingredient('cheddar', 40, 'g')],
+    optional: [ingredient('mustard', 1, 'linguriță')],
+    steps: [
+      'Așază șunca și cașcavalul între feliile de pâine. Poți unge o felie cu muștar.',
+      'Rumenește sandvișul într-o tigaie antiaderentă, la foc mediu, pe ambele părți, până se topește cașcavalul.',
+    ],
+  },
+  {
+    id: 'cartofi-la-cuptor',
+    name: 'Cartofi la cuptor',
+    description: 'Cartofi rumeniți la cuptor, potriviți și ca garnitură.',
+    minutes: 45, difficulty: 'Ușoară', servings: 2,
+    required: [ingredient('potato', 500, 'g'), ingredient('oil', 1, 'lingură')],
+    optional: [ingredient('paprika', 0.5, 'linguriță'), ingredient('salt', 'după gust')],
+    steps: [
+      'Încălzește cuptorul la 210 °C. Spală cartofii și taie-i în felii groase, egale.',
+      'Amestecă-i cu uleiul și, dacă dorești, cu boia și sare. Întinde-i într-un singur strat în tavă.',
+      'Coace aproximativ 35 de minute, întorcându-i la jumătate, până sunt rumeni și moi în interior.',
+    ],
+  },
+  {
+    id: 'orez-cu-legume',
+    name: 'Orez cu legume',
+    description: 'Orez cu morcov și mazăre, bun de luat la pachet.',
+    minutes: 30, difficulty: 'Ușoară', servings: 2,
+    required: [ingredient('rice', 150, 'g'), ingredient('carrot', 1, 'buc.'), ingredient('peas', 100, 'g')],
+    optional: [ingredient('oil', 1, 'linguriță'), ingredient('salt', 'după gust')],
+    water: 'Pentru fierbere, conform ambalajului de orez.',
+    steps: [
+      'Clătește orezul și taie morcovul cuburi mici.',
+      'Fierbe orezul în apă conform ambalajului. Adaugă morcovul la început și mazărea spre final, respectând timpul ei de gătire.',
+      'Lasă orezul acoperit câteva minute după ce oprești focul. Adaugă ulei sau sare dacă dorești.',
+    ],
+  },
+  {
+    id: 'paste-cu-ton',
+    name: 'Paste cu ton',
+    description: 'Un prânz rapid, cu ton din conservă și sos de roșii.',
+    minutes: 22, difficulty: 'Ușoară', servings: 2,
+    required: [ingredient('pasta', 180, 'g'), ingredient('tuna', 1, 'conservă'), ingredient('passata', 200, 'g')],
+    optional: [ingredient('pepper', 'după gust')],
+    water: 'Pentru fierberea pastelor.',
+    steps: [
+      'Fierbe pastele în apă, apoi scurge-le.',
+      'Încălzește sosul într-o tigaie. Scurge tonul, mărunțește-l și amestecă-l cu sosul.',
+      'Adaugă pastele și, dacă dorești, piper. Amestecă înainte să servești.',
+    ],
+  },
+  {
+    id: 'salata-cu-oua',
+    name: 'Salată cu ouă',
+    description: 'Ouă fierte și castravete într-un sos cremos de iaurt.',
+    minutes: 18, difficulty: 'Ușoară', servings: 2,
+    required: [ingredient('egg', 3, 'buc.'), ingredient('cucumber', 0.5, 'buc.'), ingredient('yogurt', 100, 'g')],
+    optional: [ingredient('mustard', 1, 'linguriță'), ingredient('salt', 'după gust')],
+    water: 'Pentru fierberea și răcirea ouălor.',
+    steps: [
+      'Fierbe ouăle tari, aproximativ 10 minute după ce apa începe să fiarbă, apoi răcește-le în apă rece.',
+      'Curăță ouăle și taie-le împreună cu castravetele.',
+      'Amestecă totul cu iaurtul. Dacă dorești, adaugă muștar și sare.',
+    ],
+  },
+  {
+    id: 'quesadilla-cu-branza',
+    name: 'Quesadilla cu cașcaval',
+    description: 'O lipie crocantă, umplută cu cașcaval topit.',
+    minutes: 12, difficulty: 'Ușoară', servings: 1,
+    required: [ingredient('tortilla', 1, 'buc.'), ingredient('cheddar', 60, 'g')],
+    optional: [ingredient('tomato', 0.5, 'buc.'), ingredient('yogurt', 2, 'lingură')],
+    steps: [
+      'Rade cașcavalul și distribuie-l pe jumătate din lipie. Dacă folosești roșie, taie câteva felii subțiri și pune-le peste cașcaval.',
+      'Pliază lipia și rumenește-o într-o tigaie antiaderentă, la foc mediu, pe ambele părți.',
+      'Taie lipia în triunghiuri. Dacă ai iaurt, îl poți servi alături.',
+    ],
+  },
+  {
+    id: 'iaurt-cu-fructe',
+    name: 'Iaurt cu fructe',
+    description: 'Un bol rece cu iaurt, măr și banană.',
+    minutes: 6, difficulty: 'Ușoară', servings: 1,
+    required: [ingredient('yogurt', 170, 'g'), ingredient('banana', 0.5, 'buc.'), ingredient('apple', 0.5, 'buc.')],
+    optional: [ingredient('oats', 2, 'lingură'), ingredient('honey', 1, 'linguriță')],
+    steps: [
+      'Spală mărul, curăță banana și taie fructele în bucăți.',
+      'Pune fructele peste iaurt. Dacă ai, adaugă fulgi de ovăz sau puțină miere.',
+    ],
+  },
+  {
+    id: 'toast-cu-ou',
+    name: 'Toast cu ou',
+    description: 'Pâine prăjită cu ou gătit în tigaie.',
+    minutes: 10, difficulty: 'Ușoară', servings: 1,
+    required: [ingredient('bread', 2, 'felie'), ingredient('egg', 1, 'buc.')],
+    optional: [ingredient('oil', 1, 'linguriță'), ingredient('tomato', 0.5, 'buc.')],
+    steps: [
+      'Prăjește pâinea într-o tigaie antiaderentă și pune-o deoparte.',
+      'Gătește oul în aceeași tigaie, cu puțin ulei dacă ai, până se încheagă albușul și gălbenușul.',
+      'Așază oul pe toast și adaugă felii de roșie dacă ai.',
+    ],
+  },
+  {
+    id: 'paste-cu-ciuperci',
+    name: 'Paste cu ciuperci',
+    description: 'Paste cu ciuperci rumenite și puțin usturoi, dacă ai la îndemână.',
+    minutes: 25, difficulty: 'Ușoară', servings: 2,
+    required: [ingredient('pasta', 180, 'g'), ingredient('mushroom', 220, 'g'), ingredient('oil', 1, 'lingură')],
+    optional: [ingredient('garlic', 1, 'cățel'), ingredient('parsley', 'câteva fire')],
+    water: 'Pentru fierberea pastelor.',
+    steps: [
+      'Fierbe pastele în apă și păstrează câteva linguri din apa de fierbere.',
+      'Taie ciupercile și rumenește-le în ulei. Dacă ai usturoi, adaugă-l mărunțit în ultimul minut.',
+      'Adaugă pastele și apa păstrată. Amestecă și presară pătrunjel dacă ai.',
+    ],
+  },
+  {
+    id: 'supa-de-legume',
+    name: 'Supă de legume',
+    description: 'O supă simplă cu cartof, morcov și ceapă.',
+    minutes: 35, difficulty: 'Ușoară', servings: 2,
+    required: [ingredient('potato', 2, 'buc.'), ingredient('carrot', 2, 'buc.'), ingredient('onion', 1, 'buc.')],
+    optional: [ingredient('parsley', 'câteva fire'), ingredient('salt', 'după gust')],
+    water: { quantity: 800, unit: 'ml' },
+    steps: [
+      'Curăță legumele și taie-le cuburi mici.',
+      'Pune legumele în apă și fierbe-le la foc mic aproximativ 25 de minute, până se înmoaie.',
+      'Potrivește de sare dacă dorești și adaugă pătrunjel tocat la servire.',
+    ],
+  },
+  {
+    id: 'pui-cu-orez',
+    name: 'Pui cu orez',
+    description: 'Piept de pui la tigaie și o garnitură simplă de orez.',
+    minutes: 35, difficulty: 'Medie', servings: 2,
+    required: [ingredient('chicken', 300, 'g'), ingredient('rice', 150, 'g'), ingredient('oil', 1, 'lingură')],
+    optional: [ingredient('paprika', 0.5, 'linguriță'), ingredient('salt', 'după gust')],
+    water: 'Pentru fierbere, conform ambalajului de orez.',
+    steps: [
+      'Fierbe orezul în apă conform instrucțiunilor de pe ambalaj.',
+      'Taie puiul cuburi egale. Dacă dorești, presară boia și sare.',
+      'Gătește puiul în ulei, întorcând bucățile. Verifică cu un termometru că bucățile cele mai groase ating 74 °C în interior, apoi servește cu orezul.',
+    ],
+  },
+  {
+    id: 'salata-cu-ton',
+    name: 'Salată cu ton',
+    description: 'Ton, roșii și castravete într-un prânz fără gătit.',
+    minutes: 10, difficulty: 'Ușoară', servings: 2,
+    required: [ingredient('tuna', 1, 'conservă'), ingredient('tomato', 2, 'buc.'), ingredient('cucumber', 1, 'buc.')],
+    optional: [ingredient('lemon', 0.5, 'buc.'), ingredient('oil', 1, 'lingură')],
+    steps: [
+      'Spală și taie roșiile și castravetele.',
+      'Scurge tonul și amestecă-l cu legumele. Dacă le ai, adaugă suc de lămâie sau ulei.',
+    ],
+  },
+  {
+    id: 'terci-cu-banane',
+    name: 'Terci de ovăz cu banană',
+    description: 'Un mic dejun cald cu fulgi de ovăz și banană.',
+    minutes: 12, difficulty: 'Ușoară', servings: 1,
+    required: [ingredient('oats', 45, 'g'), ingredient('milk', 220, 'ml'), ingredient('banana', 1, 'buc.')],
+    optional: [ingredient('cinnamon', 'un vârf de linguriță')],
+    steps: [
+      'Pune fulgii de ovăz și laptele într-o crăticioară.',
+      'Fierbe la foc mic 5–7 minute, amestecând, până se îngroașă.',
+      'Adaugă banana tăiată și, dacă ai, scorțișoară.',
+    ],
+  },
+  {
+    id: 'dovlecei-cu-iaurt',
+    name: 'Dovlecei la tigaie cu iaurt',
+    description: 'Felii rumenite de dovlecel cu un sos rece de iaurt.',
+    minutes: 18, difficulty: 'Ușoară', servings: 2,
+    required: [ingredient('zucchini', 2, 'buc.'), ingredient('yogurt', 120, 'g'), ingredient('oil', 1, 'lingură')],
+    optional: [ingredient('garlic', 1, 'cățel'), ingredient('salt', 'după gust')],
+    steps: [
+      'Spală dovleceii și taie-i în felii de aproximativ 1 cm.',
+      'Rumenește feliile în ulei la foc mediu, pe ambele părți, până se înmoaie.',
+      'Amestecă iaurtul cu usturoi mărunțit și sare, dacă le ai. Servește sosul lângă dovlecei.',
+    ],
+  },
+];
