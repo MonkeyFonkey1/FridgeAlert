@@ -22,6 +22,7 @@ export function loadProject(entry, mocks = {}, { dev = false } = {}) {
   function load(filename) {
     const path = relative(project, filename).replaceAll('\\', '/');
     if (Object.hasOwn(mocks, path)) return mocks[path];
+    if (path.startsWith('assets/') && ['.webp', '.ttf'].includes(extname(path))) return path;
     if (modules.has(filename)) return modules.get(filename).exports;
     if (!compiled.has(filename)) {
       const { outputText } = ts.transpileModule(readFileSync(filename, 'utf8'), {

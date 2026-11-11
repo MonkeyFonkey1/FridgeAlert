@@ -1,15 +1,15 @@
 export const colors = {
-  background: '#F5F8F5',
+  background: '#F7F6F1',
   white: '#FFFFFF',
-  ink: '#142A21',
+  ink: '#21332A',
   muted: '#4F6258',
-  border: '#DCE6DF',
-  green: '#166347',
-  greenDark: '#123B2D',
-  greenSoft: '#E1F0E7',
-  mint: '#BDE9D2',
+  border: '#DEDCD1',
+  green: '#35624E',
+  greenDark: '#234D3C',
+  greenSoft: '#E4EDDF',
+  mint: '#A8C5A0',
   amber: '#774507',
-  amberSoft: '#FFF0D8',
+  amberSoft: '#F6E4D4',
   red: '#97382E',
   redSoft: '#FBE9E6',
   blue: '#294C78',
@@ -17,3 +17,5 @@ export const colors = {
   slate: '#4B4A58',
   slateSoft: '#ECEBF1',
 };
+
+export const editorialTitle = { fontFamily: 'Instrument Serif', fontWeight: '400' } as const;

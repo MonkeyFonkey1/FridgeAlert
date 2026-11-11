@@ -30,8 +30,8 @@ export function testDatabase(t, seed) {
   const filename = join(dir, 'fridgealert.db');
   const handles = new Set();
   let current;
-  function open() {
-    const database = new DatabaseSync(filename);
+  function open(path = filename) {
+    const database = new DatabaseSync(path);
     handles.add(database);
     return database;
   }
@@ -47,11 +47,15 @@ export function testDatabase(t, seed) {
     seed(database);
     close(database);
   }
-  const openDatabaseAsync = t.mock.fn(async () => {
+  const openDatabaseAsync = t.mock.fn(async (name) => {
+    if (name === ':memory:') return expoAdapter(open(name), close);
     current = open();
     return expoAdapter(current, close);
   });
-  const service = () => loadProject('src/services/foodDatabase.ts', { 'expo-sqlite': { openDatabaseAsync } });
+  const service = () => loadProject('src/services/foodDatabase.ts', {
+    expo: { requireOptionalNativeModule: () => ({}) },
+    'expo-sqlite': { openDatabaseAsync },
+  });
   return {
     db: service(),
     openDatabaseAsync,

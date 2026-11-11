@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { AppState, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
@@ -8,15 +9,25 @@ import { ScreenLoading, ScreenMessage } from '../components/ScreenMessage';
 import { ScreenTopBar } from '../components/ScreenTopBar';
 import { reminderDayOptions, type ReminderPreferences } from '../models/reminder';
 import { syncReminders, testReminder, type ReminderSyncResult, type TestReminderMode } from '../services/expirationNotifications';
-import { getReminderPreferences, saveReminderPreferences } from '../services/foodDatabase';
+import { checkNativeSQLite, getReminderPreferences, saveReminderPreferences } from '../services/foodDatabase';
 import { colors } from '../theme/theme';
+
+function reminderError(result: Extract<ReminderSyncResult, { state: 'error' }>) {
+  const messages = {
+    preferences: 'Setările mementourilor nu au putut fi citite din SQLite.',
+    inventory: 'Inventarul nu a putut fi citit din SQLite.',
+    access: 'Canalul sau permisiunile pentru notificări nu au putut fi verificate.',
+    scheduler: 'Serviciul Android pentru programarea notificărilor a returnat o eroare.',
+  };
+  return result.detail ? `${messages[result.step]} ${result.detail}` : messages[result.step];
+}
 
 function reminderStatus(result: ReminderSyncResult | undefined) {
   switch (result?.state) {
     case 'disabled': return 'Notificările de expirare sunt dezactivate.';
     case 'blocked-channel': return 'Canalul „Alerte de expirare” este blocat în setările Android.';
     case 'blocked-permission': return 'Android nu permite afișarea notificărilor.';
-    case 'error': return 'Mementourile nu au putut fi actualizate.';
+    case 'error': return reminderError(result);
     case 'ready': return result.exact
       ? 'Mementourile sunt programate pentru ora locală 09:00.'
       : 'Android poate livra mementourile mai târziu de 09:00. Ora exactă nu este disponibilă.';
@@ -28,7 +39,8 @@ export default function SettingsScreen() {
   const router = useRouter();
   const [prefs, setPrefs] = useState<ReminderPreferences>();
   const [result, setResult] = useState<ReminderSyncResult>();
-  const [loadError, setLoadError] = useState(false);
+  const [loadError, setLoadError] = useState<string>();
+  const [databaseCheck, setDatabaseCheck] = useState<string>();
   const [message, setMessage] = useState<string>();
   const [busy, setBusy] = useState(false);
   const working = useRef(false);
@@ -38,11 +50,11 @@ export default function SettingsScreen() {
       const current = await getReminderPreferences();
       if (!isFocused() || working.current) return;
       setPrefs(current);
-      setLoadError(false);
+      setLoadError(undefined);
       const sync = await syncReminders();
       if (isFocused() && !working.current) setResult(sync);
-    } catch {
-      if (isFocused()) setLoadError(true);
+    } catch (error) {
+      if (isFocused()) setLoadError(__DEV__ && error instanceof Error ? `Eroare SQLite: ${error.message}` : 'Verifică accesul la baza de date SQLite.');
     }
   }, []);
 
@@ -95,7 +107,7 @@ export default function SettingsScreen() {
         'blocked-channel': 'Activează canalul „Alerte de expirare” în setările Android.',
         unavailable: 'Testul este disponibil în modul de dezvoltare.',
       };
-      setMessage(messages[testResult]);
+      setMessage(typeof testResult === 'string' ? messages[testResult] : reminderError(testResult));
       if (prefs?.enabled) setResult(await syncReminders());
     });
   }
@@ -112,7 +124,7 @@ export default function SettingsScreen() {
           <Text accessibilityRole="header" style={styles.title}>Notificări de expirare</Text>
           <Text style={styles.description}>Primește un memento înainte să expire un aliment din frigider.</Text>
         </View>
-        {loadError ? <ScreenMessage title="Setările nu au putut fi încărcate" onRetry={() => void readSettings(() => true)} /> :
+        {loadError ? <ScreenMessage title="Setările nu au putut fi încărcate" description={loadError} onRetry={() => void readSettings(() => true)} /> :
           !prefs ? <ScreenLoading /> : (
             <>
               <View style={styles.card}>
@@ -165,19 +177,39 @@ export default function SettingsScreen() {
                 </View>
               </View>
 
-              {__DEV__ && (
-                <View style={styles.card}>
-                  <Text accessibilityRole="header" style={styles.label}>Test de dezvoltare</Text>
-                  <Text style={styles.description}>Testul imediat verifică afișarea pe același canal. Testul programat verifică și alarma Android.</Text>
-                  <PrimaryButton label="Testează acum" icon="bell-ring-outline" variant="secondary" disabled={busy}
-                    onPress={() => runNotificationTest('immediate')} />
-                  <PrimaryButton label="Testează peste 10 secunde" icon="clock-outline" variant="secondary" disabled={busy}
-                    onPress={() => runNotificationTest('scheduled')} />
-                </View>
-              )}
-              {message && <Text accessibilityLiveRegion="polite" style={styles.description}>{message}</Text>}
             </>
           )}
+        {__DEV__ && (
+          <View style={styles.card}>
+            <Text accessibilityRole="header" style={styles.label}>Test de notificări</Text>
+            <Text style={styles.description}>Testul imediat verifică afișarea pe același canal. Testul programat verifică și alarma Android.</Text>
+            <PrimaryButton label="Testează acum" icon="bell-ring-outline" variant="secondary" disabled={busy}
+              onPress={() => runNotificationTest('immediate')} />
+            <PrimaryButton label="Testează peste 10 secunde" icon="clock-outline" variant="secondary" disabled={busy}
+              onPress={() => runNotificationTest('scheduled')} />
+          </View>
+        )}
+        {message && <Text selectable accessibilityLiveRegion="polite" style={styles.description}>{message}</Text>}
+        {__DEV__ && (
+          <View style={styles.card}>
+            <Text accessibilityRole="header" style={styles.label}>Diagnostic SQLite</Text>
+            <Text style={styles.description}>
+              {Constants.expoVersion ? `Expo Go ${Constants.expoVersion}` : `Mediu: ${Constants.executionEnvironment}`}
+              {' · Runtime Expo '}{Constants.expoRuntimeVersion ?? 'necunoscut'}
+            </Text>
+            <PrimaryButton label="Verifică SQLite pe dispozitiv" icon="database-check-outline" variant="secondary"
+              disabled={busy} onPress={() => run(async () => {
+                setDatabaseCheck(undefined);
+                try {
+                  const version = await checkNativeSQLite();
+                  setDatabaseCheck(`SQLite ${version}: citirea, scrierea și ștergerea au trecut.`);
+                } catch (error) {
+                  setDatabaseCheck(error instanceof Error ? error.message : 'Verificarea SQLite a eșuat.');
+                }
+              })} />
+            {databaseCheck && <Text selectable accessibilityLiveRegion="polite" style={styles.description}>{databaseCheck}</Text>}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

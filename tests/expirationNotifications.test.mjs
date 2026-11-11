@@ -33,7 +33,10 @@ function setup(t, { dev = false } = {}) {
     'src/services/localNotifications.ts': native,
     'src/services/foodDatabase.ts': {
       getActiveFoods: async () => state.foods,
-      getReminderPreferences: async () => state.prefs,
+      getReminderPreferences: async () => {
+        if (state.databaseError) throw state.databaseError;
+        return state.prefs;
+      },
     },
   }, { dev });
   return { reminders, state, native, pending };
@@ -109,7 +112,7 @@ test('turning reminders off cancels only expiry alarms and a later sync can reco
   const { reminders, state, pending, native } = setup(t);
   pending.set('another-alert', { identifier: 'another-alert' });
   native.scheduleNotificationAsync.mock.mockImplementationOnce(async () => { throw new Error('scheduler unavailable'); });
-  assert.deepEqual(await reminders.syncReminders(), { state: 'error' });
+  assert.deepEqual(await reminders.syncReminders(), { state: 'error', step: 'scheduler' });
   assert.equal((await reminders.syncReminders()).scheduled, 1);
   state.prefs.enabled = false;
   assert.deepEqual(await reminders.syncReminders(), { state: 'disabled' });
@@ -144,4 +147,36 @@ test('local notification adapter loads without the ExpoApplication dependency', 
   Object.defineProperty(mocks, 'expo-notifications', { get() { throw new Error('ExpoApplication unavailable'); } });
   const adapter = loadProject('src/services/localNotifications.ts', mocks);
   assert.equal(typeof adapter.scheduleNotificationAsync, 'function');
+});
+
+test('a missing SQLite module blocks reminder sync but the immediate notification test still runs', async (t) => {
+  const { reminders, state, native } = setup(t, { dev: true });
+  state.databaseError = new Error("Cannot find native module 'ExpoSQLite'");
+  assert.deepEqual(await reminders.syncReminders(), {
+    state: 'error', step: 'preferences', detail: state.databaseError.message,
+  });
+  assert.equal(native.setNotificationChannelAsync.mock.callCount(), 0);
+  assert.equal(await reminders.testReminder('immediate'), 'sent');
+  assert.equal(native.scheduleNotificationAsync.mock.callCount(), 1);
+});
+
+test('a native permission or scheduling failure identifies the failed step and leaves the queue usable', async (t) => {
+  const { reminders, native } = setup(t, { dev: true });
+  native.getPermissionsAsync.mock.mockImplementationOnce(async () => { throw new Error('Permission API unavailable'); });
+  assert.deepEqual(await reminders.testReminder('immediate'), {
+    state: 'error', step: 'access', detail: 'Permission API unavailable',
+  });
+
+  native.scheduleNotificationAsync.mock.mockImplementationOnce(async () => { throw new TypeError('undefined is not a function'); });
+  assert.deepEqual(await reminders.testReminder('scheduled'), {
+    state: 'error', step: 'scheduler', detail: 'undefined is not a function',
+  });
+  assert.equal(await reminders.testReminder('scheduled'), 'scheduled');
+});
+
+test('an unavailable exact-alarm API falls back to inexact scheduling', async (t) => {
+  const { reminders, native } = setup(t, { dev: true });
+  native.getExactAlarmPermissionsAsync.mock.mockImplementation(() => { throw new TypeError('undefined is not a function'); });
+  assert.deepEqual(await reminders.syncReminders(), { state: 'ready', exact: false, scheduled: 1 });
+  assert.equal(await reminders.testReminder('scheduled'), 'scheduled-inexact');
 });

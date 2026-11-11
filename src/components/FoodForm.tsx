@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { BackHandler, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { categories, maxFoodNameLength, type FoodCategory, type NewFood } from '../models/food';
-import { colors } from '../theme/theme';
+import { colors, editorialTitle } from '../theme/theme';
 import { dateForPicker, displayDate, isDateKey, localDateKey } from '../utils/expiration';
 import { defaultQuantity, parseQuantity } from '../utils/quantity';
 import { AppIcon } from './AppIcon';
@@ -79,7 +79,7 @@ export function FoodForm({ initialValues, onSave, onBack }: {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <ScreenTopBar title={editing ? 'Detalii aliment' : 'Frigiderul meu'} onBack={onBack} disabled={saving} />
+      <ScreenTopBar title={editing ? 'Detalii aliment' : 'Aliment nou'} onBack={onBack} disabled={saving} />
 
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
         <View style={styles.heading}>
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 24, gap: 18 },
   heading: { gap: 7 },
   headingIcon: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.greenSoft, marginBottom: 2 },
-  title: { fontSize: 30, color: colors.ink, fontWeight: '800', letterSpacing: -0.8 },
+  title: { ...editorialTitle, fontSize: 34, color: colors.ink },
   description: { color: colors.muted, fontSize: 15 },
   form: { padding: 16, gap: 20, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
   field: { gap: 8 },

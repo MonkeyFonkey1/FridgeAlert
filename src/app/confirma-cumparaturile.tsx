@@ -1,7 +1,9 @@
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import { AndroidHaptics, performAndroidHapticsAsync } from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { BackHandler, Keyboard, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeInUp, ReduceMotion } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppIcon } from '../components/AppIcon';
 import { PrimaryButton } from '../components/PrimaryButton';
@@ -12,12 +14,13 @@ import { ShoppingRecipeAmounts } from '../components/ShoppingRecipeAmounts';
 import type { ShoppingItem, ShoppingPurchase } from '../models/shopping';
 import { syncReminders } from '../services/expirationNotifications';
 import { confirmShoppingPurchases, getShoppingItems } from '../services/foodDatabase';
-import { colors } from '../theme/theme';
+import { colors, editorialTitle } from '../theme/theme';
 import { dateForPicker, displayDate, isDateKey, localDateKey } from '../utils/expiration';
 import { defaultQuantity, parseQuantity } from '../utils/quantity';
 import { useFocusedData } from '../utils/useFocusedData';
 
 type Draft = { quantity: string; expirationDate: string };
+const successEntrance = FadeInUp.duration(240).reduceMotion(ReduceMotion.System);
 const emptyDraft: Draft = { quantity: String(defaultQuantity), expirationDate: '' };
 
 async function getCheckedItems() {
@@ -35,7 +38,7 @@ export default function ConfirmShoppingScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <ScreenTopBar title="Confirmă cumpărăturile" onBack={() => router.dismissTo('/cumparaturi')} />
+      <ScreenTopBar title="Confirmă cumpărăturile" onBack={() => router.canGoBack() ? router.back() : router.replace('/cumparaturi')} />
       <View style={styles.content}>
         {result.status === 'loading' ? <ScreenLoading /> : result.status === 'error' ? (
           <ScreenMessage title="Lista nu a putut fi încărcată" onRetry={retry} />
@@ -49,6 +52,7 @@ function PurchaseForm({ items }: { items: ShoppingItem[] }) {
   const router = useRouter();
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
   const [saving, setSaving] = useState(false);
+  const [completed, setCompleted] = useState(false);
   const [error, setError] = useState<string>();
   const pending = useRef(false);
   useEffect(() => {
@@ -95,7 +99,10 @@ function PurchaseForm({ items }: { items: ShoppingItem[] }) {
     try {
       if (await confirmShoppingPurchases(purchases)) {
         await syncReminders();
-        router.dismissTo('/');
+        setCompleted(true);
+        if (Platform.OS === 'android') {
+          void performAndroidHapticsAsync(AndroidHaptics.Confirm).catch(() => undefined);
+        }
       } else {
         setError('Selecția din coș s-a schimbat. Revino la coș și verifică produsele bifate.');
       }
@@ -107,9 +114,24 @@ function PurchaseForm({ items }: { items: ShoppingItem[] }) {
     }
   }
 
+  if (completed) {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <ScreenTopBar title="Cumpărături confirmate" onBack={() => router.canGoBack() ? router.back() : router.replace('/cumparaturi')} />
+        <ScrollView contentContainerStyle={styles.content}>
+          <Animated.View entering={successEntrance} style={styles.success}>
+            <View style={styles.successIcon}><AppIcon name="check" color={colors.greenDark} size={31} /></View>
+            <Text accessibilityRole="header" accessibilityLiveRegion="polite" style={styles.successTitle}>Cumpărăturile sunt în frigider</Text>
+            <PrimaryButton label="Vezi frigiderul" icon="fridge-outline" onPress={() => router.dismissTo('/frigider')} />
+          </Animated.View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.screen}>
-      <ScreenTopBar title="Confirmă cumpărăturile" disabled={saving} onBack={() => router.dismissTo('/cumparaturi')} />
+      <ScreenTopBar title="Confirmă cumpărăturile" disabled={saving} onBack={() => router.canGoBack() ? router.back() : router.replace('/cumparaturi')} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.hero}>
           <AppIcon name="fridge-outline" color={colors.greenDark} size={25} />
@@ -166,6 +188,9 @@ const styles = StyleSheet.create({
   dateButton: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, borderWidth: 1, borderColor: colors.border, minHeight: 48, paddingHorizontal: 12, paddingVertical: 6 },
   pressed: { backgroundColor: colors.greenSoft },
   dateText: { flexShrink: 1, color: colors.greenDark, fontSize: 14, fontWeight: '700' },
+  success: { marginTop: 20, padding: 20, gap: 14, borderRadius: 22, backgroundColor: colors.greenSoft },
+  successIcon: { width: 54, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.mint },
+  successTitle: { ...editorialTitle, color: colors.ink, fontSize: 32 },
   footer: { paddingHorizontal: 20, paddingVertical: 10, gap: 7, borderTopWidth: 1, borderColor: colors.border },
   error: { color: colors.red, fontSize: 14 },
 });

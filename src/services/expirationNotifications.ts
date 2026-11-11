@@ -8,16 +8,25 @@ const testIdentifier = 'fridgealert-dev-test';
 const immediateTestIdentifier = 'fridgealert-dev-test-now';
 
 export type TestReminderMode = 'immediate' | 'scheduled';
+type FailureStep = 'preferences' | 'access' | 'inventory' | 'scheduler';
+type ReminderFailure = { state: 'error'; step: FailureStep; detail?: string };
+
+function reminderFailure(step: FailureStep, error: unknown): ReminderFailure {
+  return { state: 'error', step, ...(__DEV__ && error instanceof Error ? { detail: error.message } : {}) };
+}
+
 type TestReminderResult =
   | 'sent'
   | 'scheduled'
   | 'scheduled-inexact'
   | 'blocked-permission'
   | 'blocked-channel'
-  | 'unavailable';
+  | 'unavailable'
+  | ReminderFailure;
 
 export type ReminderSyncResult =
-  | { state: 'disabled' | 'blocked-channel' | 'error' }
+  | { state: 'disabled' | 'blocked-channel' }
+  | ReminderFailure
   | { state: 'blocked-permission'; canAskAgain: boolean }
   | { state: 'ready'; exact: boolean; scheduled: number };
 
@@ -41,7 +50,11 @@ export function configureNotificationPresentation() {
 }
 
 async function exactAlarmsAllowed() {
-  return Notifications.getExactAlarmPermissionsAsync().then((permission) => permission.granted, () => false);
+  try {
+    return (await Notifications.getExactAlarmPermissionsAsync()).granted;
+  } catch {
+    return false;
+  }
 }
 
 async function notificationAccess(requestPermission: boolean) {
@@ -70,15 +83,19 @@ async function removeReminders(requests: Notifications.NotificationRequest[]) {
 
 export function syncReminders(requestPermission = false): Promise<ReminderSyncResult> {
   return inOrder(async () => {
+    let step: FailureStep = 'preferences';
     try {
       const prefs = await getReminderPreferences();
       if (!prefs.enabled) {
+        step = 'scheduler';
         const scheduled = await Notifications.getAllScheduledNotificationsAsync();
         await removeReminders(scheduled.filter(({ identifier }) => identifier.startsWith(reminderPrefix)));
         return { state: 'disabled' };
       }
 
+      step = 'access';
       const access = await notificationAccess(requestPermission);
+      step = 'scheduler';
       const scheduled = await Notifications.getAllScheduledNotificationsAsync();
       const pending = scheduled.filter(({ identifier }) => identifier.startsWith(reminderPrefix));
       if (access.state !== 'allowed') {
@@ -87,7 +104,9 @@ export function syncReminders(requestPermission = false): Promise<ReminderSyncRe
       }
 
       const exact = await exactAlarmsAllowed();
+      step = 'inventory';
       const foods = await getActiveFoods();
+      step = 'scheduler';
       const desired = new Map(foods.map((food) => {
         const date = expirationReminderDate(food.expirationDate, prefs.daysBefore);
         const deadline = dateForPicker(food.expirationDate);
@@ -123,8 +142,7 @@ export function syncReminders(requestPermission = false): Promise<ReminderSyncRe
 
       return { state: 'ready', exact, scheduled: count };
     } catch (error) {
-      if (__DEV__) console.warn('Mementourile nu au putut fi sincronizate:', error);
-      return { state: 'error' };
+      return reminderFailure(step, error);
     }
   });
 }
@@ -132,22 +150,28 @@ export function syncReminders(requestPermission = false): Promise<ReminderSyncRe
 export function testReminder(mode: TestReminderMode): Promise<TestReminderResult> {
   if (!__DEV__) return Promise.resolve('unavailable');
   return inOrder(async () => {
-    const access = await notificationAccess(true);
-    if (access.state !== 'allowed') return access.state;
+    let step: FailureStep = 'access';
+    try {
+      const access = await notificationAccess(true);
+      if (access.state !== 'allowed') return access.state;
 
-    const immediate = mode === 'immediate';
-    if (!immediate) await Notifications.cancelScheduledNotificationAsync(testIdentifier);
-    await Notifications.scheduleNotificationAsync({
-      identifier: immediate ? immediateTestIdentifier : testIdentifier,
-      content: {
-        title: 'FridgeAlert',
-        body: immediate ? 'Notificare locală de test, trimisă imediat.' : 'Notificare locală de test, programată.',
-        sound: 'default',
-      },
-      trigger: immediate ? { channelId } :
-        { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 10, channelId },
-    });
-    if (immediate) return 'sent';
-    return await exactAlarmsAllowed() ? 'scheduled' : 'scheduled-inexact';
+      step = 'scheduler';
+      const immediate = mode === 'immediate';
+      if (!immediate) await Notifications.cancelScheduledNotificationAsync(testIdentifier);
+      await Notifications.scheduleNotificationAsync({
+        identifier: immediate ? immediateTestIdentifier : testIdentifier,
+        content: {
+          title: 'FridgeAlert',
+          body: immediate ? 'Notificare locală de test, trimisă imediat.' : 'Notificare locală de test, programată.',
+          sound: 'default',
+        },
+        trigger: immediate ? { channelId } :
+          { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 10, channelId },
+      });
+      if (immediate) return 'sent';
+      return await exactAlarmsAllowed() ? 'scheduled' : 'scheduled-inexact';
+    } catch (error) {
+      return reminderFailure(step, error);
+    }
   });
 }

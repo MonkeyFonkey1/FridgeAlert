@@ -18,8 +18,8 @@ function SectionList({ sections, keyExtractor, renderSectionHeader, renderItem, 
       part(ListEmptyComponent));
 }
 
-export async function renderScreen(t, path, { data = {}, params = {}, mocks = {}, dev = false, props = {} } = {}) {
-  const router = { navigate: t.mock.fn(), dismissTo: t.mock.fn(), replace: t.mock.fn(), back: t.mock.fn(), canGoBack: () => true };
+export async function renderScreen(t, path, { data = {}, params = {}, mocks = {}, dev = false, props = {}, canGoBack = true, reduceMotion = false } = {}) {
+  const router = { navigate: t.mock.fn(), dismissTo: t.mock.fn(), replace: t.mock.fn(), back: t.mock.fn(), canGoBack: () => canGoBack };
   const datePicker = { open: t.mock.fn() };
   const alert = { alert: t.mock.fn() };
   const backHandler = { addEventListener: t.mock.fn(() => ({ remove() {} })) };
@@ -34,19 +34,35 @@ export async function renderScreen(t, path, { data = {}, params = {}, mocks = {}
     syncReminders: t.mock.fn(async () => ({ state: 'disabled' })),
     testReminder: t.mock.fn(async () => 'sent'),
   };
+  const haptics = { AndroidHaptics: { Confirm: 'confirm' }, performAndroidHapticsAsync: t.mock.fn(async () => {}) };
+  const animation = { duration: () => animation, reduceMotion: () => animation };
+  const Stack = Object.assign(({ children }) => element('Stack', null, children), { Screen: 'StackScreen' });
+  const Tabs = Object.assign(({ children, ...options }) => element('Tabs', options, children), { Screen: 'TabScreen' });
+  let focused = true;
   const loaded = loadProject(path, {
     'react-native': {
-      Text: 'Text', View: 'View', Pressable: 'Pressable', ScrollView: 'ScrollView', TextInput: 'TextInput',
+      Image: 'Image', Platform: { OS: 'android' }, Text: 'Text', View: 'View', Pressable: 'Pressable', ScrollView: 'ScrollView', TextInput: 'TextInput',
       ActivityIndicator: 'ActivityIndicator', Modal: 'Modal', Switch: 'Switch', FlatList, SectionList,
-      StyleSheet: { create: (styles) => styles },
+      StyleSheet: { create: (styles) => styles, absoluteFill: {} },
       Keyboard: { dismiss: t.mock.fn() }, BackHandler: backHandler, AppState: appState, Alert: alert,
       Linking: { openSettings: t.mock.fn(async () => {}) },
     },
     'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
     'expo-router': {
-      useRouter: () => router, useFocusEffect: (effect) => useEffect(effect, [effect]),
-      useLocalSearchParams: () => params, Stack: 'Stack',
+      useRouter: () => router, useFocusEffect: (effect) => useEffect(() => focused ? effect() : undefined, [effect, focused]),
+      useLocalSearchParams: () => params, Stack, Tabs,
     },
+    'react-native-reanimated': {
+      __esModule: true, default: { View: 'AnimatedView' }, FadeInUp: animation, ZoomIn: animation, ReduceMotion: { System: 'system' },
+      useReducedMotion: () => reduceMotion, useSharedValue: (initial) => {
+        let value = initial;
+        return { get: () => value, set: (next) => { value = next; } };
+      },
+      useAnimatedStyle: (factory) => factory(), withTiming: (value) => value,
+    },
+    'expo-haptics': haptics,
+    'expo-constants': { expoVersion: '58.0.0', expoRuntimeVersion: '58.0.0', executionEnvironment: 'storeClient' },
+    'expo-font': { useFonts: () => [true, null] },
     'expo-status-bar': { StatusBar: 'StatusBar' },
     '@react-native-community/datetimepicker': { DateTimePickerAndroid: datePicker },
     'src/components/AppIcon.tsx': { AppIcon: 'AppIcon' },
@@ -88,5 +104,9 @@ export async function renderScreen(t, path, { data = {}, params = {}, mocks = {}
   const option = (label) => findOne(
     (node) => node.props.accessibilityRole === 'radio' && textOf(node) === label, label,
   );
-  return { root, router, datePicker, alert, backHandler, appState, reminders, byLabel, byText, findAll, textOf, option, press, change, date };
+  async function focus(value) {
+    focused = value;
+    await act(async () => root.render(element(screen, props)));
+  }
+  return { root, router, focus, haptics, datePicker, alert, backHandler, appState, reminders, byLabel, byText, findAll, textOf, option, press, change, date };
 }

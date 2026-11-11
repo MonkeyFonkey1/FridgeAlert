@@ -5,15 +5,15 @@ import { addFood } from '../services/foodDatabase';
 
 export default function AddFoodScreen() {
   const router = useRouter();
-  const goHome = () => router.dismissTo('/');
+  const goBack = () => router.canGoBack() ? router.back() : router.replace('/frigider');
 
   return (
     <FoodForm
-      onBack={goHome}
+      onBack={goBack}
       onSave={async (food) => {
         await addFood(food);
         await syncReminders();
-        goHome();
+        goBack();
       }}
     />
   );

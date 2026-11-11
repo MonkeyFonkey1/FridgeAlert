@@ -1,4 +1,5 @@
-import { openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
+import { requireOptionalNativeModule } from 'expo';
+import type { SQLiteDatabase } from 'expo-sqlite';
 import { shoppingFoodCategory, shoppingIdentity } from '../data/ingredients';
 import type { InventoryActivity } from '../models/activity';
 import { categories, maxFoodNameLength, type Food, type HistoryStatus, type NewFood } from '../models/food';
@@ -10,7 +11,21 @@ import { defaultQuantity, isValidQuantity } from '../utils/quantity';
 let databasePromise: Promise<SQLiteDatabase> | undefined;
 const foodColumns = 'id, name, category, expirationDate, quantity, status, createdAt';
 
+async function loadSQLite() {
+  // Metro can report a failing dynamic module as a fatal error and return empty exports.
+  // Check the host before evaluating expo-sqlite, which requires the native module eagerly.
+  if (!requireOptionalNativeModule('ExpoSQLite')) {
+    throw new Error("Cannot find native module 'ExpoSQLite'");
+  }
+  const { openDatabaseAsync } = await import('expo-sqlite');
+  if (typeof openDatabaseAsync !== 'function') {
+    throw new Error('Pachetul expo-sqlite nu a putut fi încărcat.');
+  }
+  return openDatabaseAsync;
+}
+
 async function initializeDatabase(): Promise<SQLiteDatabase> {
+  const openDatabaseAsync = await loadSQLite();
   const db = await openDatabaseAsync('fridgealert.db');
   try {
     await db.execAsync('PRAGMA journal_mode = WAL;');
@@ -358,4 +373,28 @@ export async function confirmShoppingPurchases(purchases: ShoppingPurchase[]): P
     confirmed = true;
   });
   return confirmed;
+}
+
+/** Exercises the SQLite connection in the Android host without opening the inventory. */
+export async function checkNativeSQLite(): Promise<string> {
+  const openDatabaseAsync = await loadSQLite();
+  const db = await openDatabaseAsync(':memory:', { useNewConnection: true });
+  try {
+    await db.execAsync('CREATE TABLE native_check (id INTEGER PRIMARY KEY, value TEXT NOT NULL)');
+    await db.withTransactionAsync(async () => {
+      await db.runAsync('INSERT INTO native_check (id, value) VALUES (?, ?)', 1, 'scris');
+      await db.runAsync('UPDATE native_check SET value = ? WHERE id = ?', 'verificat', 1);
+    });
+    const row = await db.getFirstAsync<{ value: string }>('SELECT value FROM native_check WHERE id = ?', 1);
+    if (row?.value !== 'verificat') throw new Error('Verificarea de scriere și citire SQLite a eșuat.');
+    await db.runAsync('DELETE FROM native_check WHERE id = ?', 1);
+    if (await db.getFirstAsync('SELECT id FROM native_check WHERE id = ?', 1)) {
+      throw new Error('Verificarea de ștergere SQLite a eșuat.');
+    }
+    const engine = await db.getFirstAsync<{ version: string }>('SELECT sqlite_version() AS version');
+    if (!engine?.version) throw new Error('Versiunea motorului SQLite nu a putut fi citită.');
+    return engine.version;
+  } finally {
+    await db.closeAsync();
+  }
 }

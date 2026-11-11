@@ -19,7 +19,7 @@ export default function HistoryScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <ScreenTopBar title="Istoric" onBack={() => router.dismissTo('/')} />
+      <ScreenTopBar title="Istoric" onBack={() => router.canGoBack() ? router.back() : router.replace('/frigider')} />
       <SectionList
         sections={sections}
         keyExtractor={(food) => String(food.id)}

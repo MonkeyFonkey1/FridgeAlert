@@ -4,13 +4,14 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppIcon } from '../../components/AppIcon';
 import { PrimaryButton } from '../../components/PrimaryButton';
+import { RecipePhoto } from '../../components/RecipePhoto';
 import { QuantityInput } from '../../components/QuantityInput';
 import { ScreenLoading, ScreenMessage } from '../../components/ScreenMessage';
 import { ScreenTopBar } from '../../components/ScreenTopBar';
 import { ingredients } from '../../data/ingredients';
 import { recipes } from '../../data/recipes';
 import { addRecipeShoppingItems, getActiveFoods } from '../../services/foodDatabase';
-import { colors } from '../../theme/theme';
+import { colors, editorialTitle } from '../../theme/theme';
 import { parseQuantity } from '../../utils/quantity';
 import { formatRecipeAmount, maximumServings } from '../../utils/recipeAmount';
 import { recommendRecipes, type IngredientMatch } from '../../utils/recipeRecommendations';
@@ -74,8 +75,8 @@ export default function RecipeDetailsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {!recipe ? <ScreenMessage title="Rețeta nu a fost găsită" /> : (
           <>
+            <View style={styles.photo}><RecipePhoto id={recipe.id} height={240} /></View>
             <View style={styles.hero}>
-              <AppIcon name="chef-hat" color={colors.greenDark} size={30} />
               <Text accessibilityRole="header" style={styles.title}>{recipe.name}</Text>
               <Text style={styles.description}>{recipe.description}</Text>
               <View style={styles.metrics}>
@@ -121,7 +122,7 @@ export default function RecipeDetailsScreen() {
                   </>
                 )}
               <PrimaryButton label="Vezi lista de cumpărături" icon="cart-outline" variant="secondary"
-                disabled={saving} onPress={() => router.navigate('/cumparaturi')} />
+                disabled={saving} onPress={() => router.dismissTo('/cumparaturi')} />
             </View>
 
             <View style={styles.card}>
@@ -142,9 +143,10 @@ export default function RecipeDetailsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: 20, paddingTop: 9, paddingBottom: 24, gap: 14 },
-  hero: { backgroundColor: '#DDEBDD', padding: 20, borderRadius: 24, gap: 9 },
-  title: { color: colors.ink, fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
+  content: { width: '100%', maxWidth: 680, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 9, paddingBottom: 24, gap: 14 },
+  photo: { borderRadius: 23, overflow: 'hidden' },
+  hero: { gap: 9, paddingBottom: 5 },
+  title: { ...editorialTitle, color: colors.ink, fontSize: 37 },
   description: { color: colors.muted, fontSize: 14, lineHeight: 21 },
   metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 3 },
   metric: { color: colors.greenDark, backgroundColor: colors.white, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 9, fontSize: 13, fontWeight: '700' },

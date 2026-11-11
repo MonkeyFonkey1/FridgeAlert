@@ -30,7 +30,7 @@ test('add screen validates inputs and saves a trimmed name, selected date and in
   await ui.press(ui.byLabel('Salvează produs'));
   assert.deepEqual(args(addFood), [[{ name: 'Iaurt', category: 'Lactate', quantity: 2, expirationDate: '2026-11-15' }]]);
   assert.equal(ui.reminders.syncReminders.mock.callCount(), 1);
-  assert.deepEqual(args(ui.router.dismissTo), [['/']]);
+  assert.equal(ui.router.back.mock.callCount(), 1);
 });
 
 test('edit screen pre-fills the item, reports a stale save, and refreshes reminders on success', async (t) => {
@@ -86,11 +86,10 @@ test('details only delete after confirmation and reject invalid route IDs', asyn
   assert.deepEqual(args(getFoodById), [[7]]);
 });
 
-test('dashboard shows real counts and supports search, navigation and the history sections', async (t) => {
+test('fridge shows real counts and supports search, navigation and the history sections', async (t) => {
   const foods = [lot, { ...lot, id: 8, name: 'Măr', category: 'Fructe', expirationDate: '2026-11-10' }];
-  const ui = await renderScreen(t, 'src/app/index.tsx', { data: { getActiveFoods: async () => foods } });
-  ui.byLabel('Produse active, 2');
-  ui.byLabel('În max. 3 zile, 1');
+  const ui = await renderScreen(t, 'src/app/(tabs)/frigider.tsx', { data: { getActiveFoods: async () => foods } });
+  ui.byText('2 produse active · 10 buc. sau ambalaje');
   await ui.change('Caută după numele alimentului', 'produse inexistente');
   ui.byText('Niciun rezultat');
   await ui.change('Caută după numele alimentului', 'mar');
@@ -102,8 +101,7 @@ test('dashboard shows real counts and supports search, navigation and the histor
   assert.match(ui.textOf(apple), /Măr/);
   await ui.press(apple);
   await ui.press(ui.byLabel('Istoric'));
-  await ui.press(ui.byLabel('Vezi toate rețetele'));
-  assert.deepEqual(args(ui.router.navigate), [[{ pathname: '/alimente/[id]', params: { id: '8' } }], ['/istoric'], ['/retete']]);
+  assert.deepEqual(args(ui.router.navigate), [[{ pathname: '/alimente/[id]', params: { id: '8' } }], ['/istoric']]);
 
   const history = await renderScreen(t, 'src/app/istoric.tsx', {
     data: { getHistoryFoods: async () => [{ ...lot, status: 'consumed' }, { ...foods[1], status: 'discarded' }] },
@@ -112,6 +110,8 @@ test('dashboard shows real counts and supports search, navigation and the histor
   history.byText('Aruncate');
   history.byText('Consumat');
   history.byText('Aruncat');
+  await history.press(history.byLabel('Înapoi'));
+  assert.equal(history.router.back.mock.callCount(), 1);
 });
 
 test('recipe details scale missing and already matched ingredients before adding them to the cart', async (t) => {
@@ -134,7 +134,7 @@ test('recipe details scale missing and already matched ingredients before adding
 });
 
 test('recipes screen groups the catalog and opens a recipe and the cart', async (t) => {
-  const ui = await renderScreen(t, 'src/app/retete/index.tsx', {
+  const ui = await renderScreen(t, 'src/app/(tabs)/retete.tsx', {
     data: { getActiveFoods: async () => [{ ...lot, name: 'Ouă' }, { ...lot, id: 8, name: 'Telemea' }] },
   });
   for (const title of ['Poți găti acum', 'Îți lipsesc puține ingrediente', 'Alte idei']) ui.byText(title);
@@ -152,7 +152,7 @@ test('cart checkboxes do not confirm automatically and checkout submits once wit
   });
   const confirmShoppingPurchases = t.mock.fn(async () => true);
   const data = { getShoppingItems: async () => items, setShoppingItemChecked, confirmShoppingPurchases };
-  const cart = await renderScreen(t, 'src/app/cumparaturi.tsx', { data });
+  const cart = await renderScreen(t, 'src/app/(tabs)/cumparaturi.tsx', { data });
   assert.equal(cart.findAll(({ props }) => props.accessibilityLabel?.startsWith('Confirmă cumpărăturile')).length, 0);
   await cart.press(cart.byLabel('Ouă'));
   await cart.press(cart.byLabel('Lapte'));
@@ -174,7 +174,10 @@ test('cart checkboxes do not confirm automatically and checkout submits once wit
     { id: 2, name: 'Lapte', quantity: 1, expirationDate: '2026-11-20' },
   ]);
   assert.equal(checkout.reminders.syncReminders.mock.callCount(), 1);
-  assert.deepEqual(args(checkout.router.dismissTo), [['/']]);
+  checkout.byText('Cumpărăturile sunt în frigider');
+  assert.deepEqual(args(checkout.haptics.performAndroidHapticsAsync), [['confirm']]);
+  await checkout.press(checkout.byLabel('Vezi frigiderul'));
+  assert.deepEqual(args(checkout.router.dismissTo), [['/frigider']]);
 });
 
 test('settings persist changes before rescheduling and show diagnostic controls only in development', async (t) => {
@@ -194,10 +197,10 @@ test('settings persist changes before rescheduling and show diagnostic controls 
 test('dashboard can recover from a failed query, and discarding refreshes reminders', async (t) => {
   const getActiveFoods = t.mock.fn(async () => [lot]);
   getActiveFoods.mock.mockImplementationOnce(async () => { throw new Error('database unavailable'); });
-  const home = await renderScreen(t, 'src/app/index.tsx', { data: { getActiveFoods } });
+  const home = await renderScreen(t, 'src/app/(tabs)/index.tsx', { data: { getActiveFoods } });
   home.byText('Nu am putut încărca produsele');
   await home.press(home.byLabel('Încearcă din nou'));
-  home.byLabel('Produse active, 1');
+  home.byText('Nimic nu expiră curând');
   assert.equal(getActiveFoods.mock.callCount(), 2);
 
   const changeFoodQuantity = t.mock.fn(async () => true);
@@ -224,7 +227,7 @@ test('root layout configures notifications once and refreshes alarms on foregrou
 });
 
 test('dashboard opens statistics, and period filters update activity independently of current inventory', async (t) => {
-  const home = await renderScreen(t, 'src/app/index.tsx');
+  const home = await renderScreen(t, 'src/app/(tabs)/index.tsx');
   await home.press(home.byLabel('Statistici'));
   assert.deepEqual(args(home.router.navigate), [['/statistici']]);
 
@@ -265,7 +268,7 @@ test('takes scaled recipe ingredients through checkout into the live inventory a
   await recipe.change('Număr de porții', '4');
   await recipe.press(recipe.byLabel('Adaugă ingredientele lipsă pe lista de cumpărături'));
 
-  const cart = await renderScreen(t, 'src/app/cumparaturi.tsx', { data: db });
+  const cart = await renderScreen(t, 'src/app/(tabs)/cumparaturi.tsx', { data: db });
   await cart.press(cart.byLabel('Ouă'));
   await cart.press(cart.byLabel('Brânză'));
   assert.deepEqual(await db.getInventoryActivity(), []);
@@ -306,4 +309,93 @@ test('two rapid confirmations send one partial disposal to SQLite', async (t) =>
   assert.equal(details.byLabel('Confirmă aruncarea').props.accessibilityState.busy, true);
   await act(async () => finish(true));
   assert.equal(details.router.back.mock.callCount(), 1);
+});
+
+test('four primary tabs are declared separately and the add screen is a stack modal', async (t) => {
+  const tabs = await renderScreen(t, 'src/app/(tabs)/_layout.tsx');
+  const names = tabs.findAll(({ type }) => type === 'TabScreen').map(({ props }) => [props.name, props.options.title]);
+  assert.deepEqual(names, [
+    ['index', 'Acasă'], ['frigider', 'Frigider'], ['retete', 'Rețete'], ['cumparaturi', 'Cumpărături'],
+  ]);
+  assert.equal(tabs.findAll(({ type }) => type === 'Tabs')[0].props.backBehavior, 'history');
+  const stack = await renderScreen(t, 'src/app/_layout.tsx', { reduceMotion: true });
+  const modal = stack.findAll(({ type, props }) => type === 'StackScreen' && props.name === 'adauga')[0];
+  assert.equal(modal.props.options.presentation, 'modal');
+  assert.equal(modal.props.options.animation, 'none');
+});
+
+test('home stays focused on today and links to the fridge, settings and the add modal', async (t) => {
+  const foods = Array.from({ length: 5 }, (_, index) => ({
+    ...lot, id: index + 1, name: `Aliment ${index + 1}`, expirationDate: '2026-11-11',
+  }));
+  const home = await renderScreen(t, 'src/app/(tabs)/index.tsx', { data: { getActiveFoods: async () => foods } });
+  home.byText('5 alimente expiră curând');
+  assert.equal(home.findAll((node) => node.type === 'Text' && /^Aliment \d$/.test(home.textOf(node))).length, 3);
+  assert.equal(home.findAll(({ props }) => props.accessibilityHint === 'Deschide rețeta').length, 1);
+  assert.equal(home.findAll(({ type }) => type === 'TextInput').length, 0);
+  for (const label of ['Vezi toate', 'Setări notificări', 'Adaugă aliment']) await home.press(home.byLabel(label));
+  assert.deepEqual(args(home.router.navigate), [['/frigider'], ['/setari'], ['/adauga']]);
+
+  const directAdd = await renderScreen(t, 'src/app/adauga.tsx', { canGoBack: false });
+  await directAdd.press(directAdd.byLabel('Înapoi'));
+  assert.deepEqual(args(directAdd.router.replace), [['/frigider']]);
+});
+
+test('recipes and shopping reload on focus after inventory and cart updates', async (t) => {
+  const { db } = testDatabase(t);
+  const recipe = await renderScreen(t, 'src/app/retete/[id].tsx', {
+    data: db, params: { id: 'omleta-cu-branza' },
+  });
+  assert.equal(recipe.findAll((node) => node.type === 'Text' && recipe.textOf(node) === 'Găsit după denumire').length, 0);
+  const shopping = await renderScreen(t, 'src/app/(tabs)/cumparaturi.tsx', { data: db });
+  shopping.byText('Lista este goală');
+  await shopping.focus(false);
+  await recipe.press(recipe.byLabel('Adaugă ingredientele lipsă pe lista de cumpărături'));
+  await shopping.focus(true);
+  shopping.byLabel('Ouă');
+
+  await recipe.focus(false);
+  await db.addFood({ ...lot, name: 'Ouă' });
+  await recipe.focus(true);
+  recipe.byText('Găsit după denumire');
+});
+
+test('home reports a missing SQLite native module without losing navigation', async (t) => {
+  const home = await renderScreen(t, 'src/app/(tabs)/index.tsx', {
+    data: { getActiveFoods: async () => { throw new Error("Cannot find native module 'ExpoSQLite'"); } },
+  });
+  home.byText('SQLite lipsește din aplicația Android');
+  await home.press(home.byLabel('Setări notificări'));
+  assert.deepEqual(args(home.router.navigate), [['/setari']]);
+});
+
+test('development settings diagnose the Android SQLite client even when inventory cannot open', async (t) => {
+  const missing = new Error("Cannot find native module 'ExpoSQLite'");
+  const getReminderPreferences = async () => { throw missing; };
+  const checkNativeSQLite = t.mock.fn(async () => '3.50.0');
+  checkNativeSQLite.mock.mockImplementationOnce(async () => { throw missing; });
+  const data = { getReminderPreferences, checkNativeSQLite };
+  const settings = await renderScreen(t, 'src/app/setari.tsx', { data, dev: true });
+  settings.byText('Expo Go 58.0.0 · Runtime Expo 58.0.0');
+  await settings.press(settings.byLabel('Verifică SQLite pe dispozitiv'));
+  settings.byText(missing.message);
+  await settings.press(settings.byLabel('Verifică SQLite pe dispozitiv'));
+  settings.byText('SQLite 3.50.0: citirea, scrierea și ștergerea au trecut.');
+  const release = await renderScreen(t, 'src/app/setari.tsx', { data });
+  assert.equal(release.findAll(({ props }) => props.accessibilityLabel === 'Verifică SQLite pe dispozitiv').length, 0);
+});
+
+test('notification diagnostics stay accessible when SQLite settings fail to load', async (t) => {
+  const testReminder = t.mock.fn(async () => ({
+    state: 'error', step: 'scheduler', detail: 'ExpoNotificationScheduler unavailable',
+  }));
+  const ui = await renderScreen(t, 'src/app/setari.tsx', {
+    data: { getReminderPreferences: async () => { throw new Error("Cannot find native module 'ExpoSQLite'"); } },
+    mocks: { 'src/services/expirationNotifications.ts': { testReminder } },
+    dev: true,
+  });
+  ui.byText('Setările nu au putut fi încărcate');
+  await ui.press(ui.byLabel('Testează acum'));
+  ui.byText('Serviciul Android pentru programarea notificărilor a returnat o eroare. ExpoNotificationScheduler unavailable');
+  assert.deepEqual(args(testReminder), [['immediate']]);
 });

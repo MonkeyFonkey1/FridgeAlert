@@ -24,16 +24,30 @@ EXPO_OFFLINE=1 npm start -- --localhost --port 8081
 
 Cu un emulator Android deja pornit, poți folosi și `npm run android`.
 
+## Diagnostic SQLite pe Android
+
+În modul de dezvoltare, deschide **Acasă → Setări → Diagnostic SQLite**. Secțiunea arată versiunea clientului Expo Go și a runtime-ului. **Verifică SQLite pe dispozitiv** creează o bază în memorie, testează operațiile de scriere, citire și ștergere și afișează rezultatul. Inventarul este stocat separat.
+
+Dacă diagnosticul afișează `Cannot find native module 'ExpoSQLite'`, clientul Android care rulează codul trebuie verificat. Pentru Expo Go, verifică versiunea instalată și folosește distribuția pentru SDK 58. Păstrează datele Expo Go în timpul diagnosticării. Cu Android SDK configurat și telefonul conectat prin USB, poți verifica separat și un build local cu `npx expo run:android --device`. Buildul local folosește propriul spațiu de stocare.
+
+`npm run verify` rulează TypeScript, lint, testele automate și exportul Android. Diagnosticul de pe telefon verifică încărcarea modulului nativ în clientul instalat.
+
+## Navigare și fotografii
+
+Bara inferioară are patru taburi: Acasă, Frigider, Rețete și Cumpărături. Statisticile și setările se deschid din Acasă, iar istoricul din Frigider. Formularul de adăugare revine la tabul din care l-ai deschis. După confirmarea cumpărăturilor, ecranul de succes oferă acces direct la Frigider.
+
+Fotografiile locale și lista preparatelor pentru care se pot adăuga fotografii se găsesc în [assets/food](assets/food/README.md). Titlurile folosesc [Instrument Serif](https://github.com/google/fonts/tree/main/ofl/instrumentserif), inclus local împreună cu [licența SIL Open Font License](assets/fonts/OFL.txt).
+
 ## Ce să verifici pe telefon
 
 1. La prima pornire, lista este goală și contoarele sunt la zero.
 2. Deschide „Adaugă aliment”. Cantitatea pornește de la 1, iar minusul este dezactivat la această valoare. Încearcă plus și minus, apoi încearcă să salvezi cu valoarea 0. Formularul trebuie să afișeze o eroare.
-3. Adaugă patru înregistrări cu datele ieri, azi, peste 3 zile și peste 4 zile și cantitățile 1, 6, 2 și 3. Dashboardul arată 4 produse active, 12 bucăți sau ambalaje, 2 produse care expiră în maximum 3 zile și 1 produs expirat. „Consumă prioritar” începe cu produsul de azi.
+3. Adaugă patru înregistrări cu datele ieri, azi, peste 3 zile și peste 4 zile și cantitățile 1, 6, 2 și 3. Frigiderul arată 4 produse active și 12 bucăți sau ambalaje. Acasă și în Statistici apar 2 produse care expiră în maximum 3 zile. „Consumă prioritar” începe cu produsul de azi.
 4. Deschide alimentul care expiră peste 4 zile și apasă „Editează”. Schimbă numele, categoria, data la peste 5 zile și cantitatea la 2. Verifică noile valori în detalii și în listă. Totalul trebuie să scadă la 11 bucăți sau ambalaje.
-5. La alimentul de azi, apasă „Am consumat produsul”, alege 2 buc. și confirmă. Verifică dacă mai sunt 4 buc. în inventar și dacă 2 buc. apar în istoric. Marchează apoi alimentul de ieri ca fiind aruncat și confirmă cantitatea de 1 buc. Inventarul trebuie să arate 3 înregistrări și 8 bucăți sau ambalaje, dintre care 2 înregistrări expiră în maximum 3 zile.
+5. La alimentul de azi, apasă „Am consumat produsul”, alege 2 buc. și confirmă. Verifică dacă mai sunt 4 buc. în inventar și dacă 2 buc. apar în istoric. Marchează apoi alimentul de ieri ca fiind aruncat și confirmă cantitatea de 1 buc. Frigiderul trebuie să arate 3 înregistrări și 8 bucăți sau ambalaje. În Statistici, 2 produse expiră în maximum 3 zile.
 6. Deschide produsul aruncat din istoric. La „Șterge definitiv”, alege mai întâi „Anulează” și verifică dacă produsul rămâne. Repetă și alege „Șterge”. Produsul trebuie să dispară din istoric. Poți testa aceleași două opțiuni pe un produs activ.
 7. Închide aplicația din lista de aplicații recente și redeschide proiectul din Expo Go. Verifică inventarul și istoricul, inclusiv faptul că produsele șterse nu reapar.
-8. Caută după nume și deschide „Filtre și sortare”. Încearcă o categorie împreună cu „În max. 3 zile”, apoi sortează descrescător. Verifică lista, numărul de rezultate și butonul de resetare. Cardurile din dashboard rezumă întregul inventar.
+8. Caută după nume și deschide „Filtre și sortare”. Încearcă o categorie împreună cu „În max. 3 zile”, apoi sortează descrescător. Verifică lista, numărul de rezultate și butonul de resetare. Acasă afișează cel mult trei produse prioritare și o recomandare de rețetă.
 
 Un produs rămâne activ și după expirare; „activ” este starea de inventar, iar expirarea se calculează separat. Datele de expirare reprezintă zile calendaristice locale, în format `YYYY-MM-DD`. Un aliment care expiră azi intră în contor până la sfârșitul zilei locale.
 
@@ -77,6 +91,7 @@ Android poate amâna livrarea în funcție de permisiunea pentru alarme exacte �
 
 ```bash
 npm run typecheck
+npm run lint
 npm test
 ```
 

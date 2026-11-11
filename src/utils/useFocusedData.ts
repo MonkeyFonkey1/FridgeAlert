@@ -2,22 +2,25 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
 type Result<T> =
-  | { status: 'loading' | 'error' }
+  | { status: 'loading' }
+  | { status: 'error'; error: unknown }
   | { status: 'ready'; data: T };
 
-export function useFocusedData<T>(load: () => Promise<T>) {
+export function useFocusedData<T>(load: () => Promise<T>, keepDataOnRefresh = false) {
   const [result, setResult] = useState<Result<T>>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
 
   useFocusEffect(useCallback(() => {
     let focused = true;
-    setResult({ status: 'loading' });
+    setResult((previous) => keepDataOnRefresh && previous.status === 'ready' ? previous : { status: 'loading' });
     load().then(
       (data) => { if (focused) setResult({ status: 'ready', data }); },
-      () => { if (focused) setResult({ status: 'error' }); },
+      (error: unknown) => { if (focused) setResult({ status: 'error', error }); },
     );
     return () => { focused = false; };
-  }, [load, attempt]));
+    // A retry changes the subscription key so the focused screen loads again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [load, attempt, keepDataOnRefresh]));
 
   return { result, retry: () => setAttempt((previous) => previous + 1) };
 }

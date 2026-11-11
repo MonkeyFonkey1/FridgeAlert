@@ -37,7 +37,7 @@ export default function FoodDetailsScreen() {
 
   function goBack() {
     if (router.canGoBack()) router.back();
-    else router.replace(food && food.status !== 'active' ? '/istoric' : '/');
+    else router.replace(food && food.status !== 'active' ? '/istoric' : '/frigider');
   }
 
   async function runAction(action: Action, change: (id: number) => Promise<boolean>) {

@@ -17,7 +17,7 @@ export default function EditFoodScreen() {
   function goBack() {
     if (router.canGoBack()) router.back();
     else if (food) router.replace({ pathname: '/alimente/[id]', params: { id: String(food.id) } });
-    else router.replace('/');
+    else router.replace('/frigider');
   }
 
   if (food?.status === 'active') {

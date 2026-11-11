@@ -2,14 +2,12 @@ import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { SectionList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AppIcon } from '../../components/AppIcon';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { RecipeCard } from '../../components/RecipeCard';
 import { ScreenLoading, ScreenMessage } from '../../components/ScreenMessage';
-import { ScreenTopBar } from '../../components/ScreenTopBar';
 import { recipes } from '../../data/recipes';
 import { getActiveFoods } from '../../services/foodDatabase';
-import { colors } from '../../theme/theme';
+import { colors, editorialTitle } from '../../theme/theme';
 import { recipeGroups, recommendRecipes } from '../../utils/recipeRecommendations';
 import { useFocusedData } from '../../utils/useFocusedData';
 import { useToday } from '../../utils/useToday';
@@ -29,8 +27,7 @@ export default function RecipesScreen() {
   }, [foods, today]);
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <ScreenTopBar title="Rețete" onBack={() => router.dismissTo('/')} />
+    <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
       <SectionList
         sections={sections}
         keyExtractor={({ recipe }) => recipe.id}
@@ -38,11 +35,8 @@ export default function RecipesScreen() {
         contentContainerStyle={styles.content}
         ListHeaderComponent={
           <View style={styles.header}>
-            <View style={styles.hero}>
-              <View style={styles.icon}><AppIcon name="chef-hat" color={colors.greenDark} size={28} /></View>
-              <Text accessibilityRole="header" style={styles.title}>Ce gătim astăzi?</Text>
-              <Text style={styles.description}>Descoperă ce poți prepara cu alimentele din frigider.</Text>
-            </View>
+            <Text accessibilityRole="header" style={styles.title}>Rețete</Text>
+            <Text style={styles.description}>Idei de gătit cu ce ai deja în frigider.</Text>
             <PrimaryButton label="Lista de cumpărături" icon="cart-outline" variant="secondary" onPress={() => router.navigate('/cumparaturi')} />
             {foods && foods.length === 0 && <Text style={styles.note}>Adaugă alimente în frigider pentru sugestii potrivite stocului tău.</Text>}
             {foods && (
@@ -53,9 +47,9 @@ export default function RecipesScreen() {
         renderSectionHeader={({ section }) => (
           <Text accessibilityRole="header" style={styles.sectionTitle}>{section.title}</Text>
         )}
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <View style={styles.item}>
-            <RecipeCard recommendation={item} onPress={() => router.navigate({ pathname: '/retete/[id]', params: { id: item.recipe.id } })} />
+            <RecipeCard compact={index > 0} recommendation={item} onPress={() => router.navigate({ pathname: '/retete/[id]', params: { id: item.recipe.id } })} />
           </View>
         )}
         ListEmptyComponent={result.status === 'error' ? (
@@ -68,13 +62,11 @@ export default function RecipesScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: 20, paddingTop: 9, paddingBottom: 24 },
+  content: { width: '100%', maxWidth: 680, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 },
   header: { gap: 10, marginBottom: 7 },
-  hero: { padding: 20, gap: 8, borderRadius: 24, backgroundColor: '#DDEBDD' },
-  icon: { alignSelf: 'flex-start', backgroundColor: colors.white, padding: 10, borderRadius: 14 },
-  title: { color: colors.ink, fontSize: 29, letterSpacing: -0.6, fontWeight: '800' },
+  title: { ...editorialTitle, color: colors.ink, fontSize: 39 },
   description: { color: colors.greenDark, fontSize: 15, lineHeight: 22 },
   note: { color: colors.muted, fontSize: 13, lineHeight: 19 },
-  sectionTitle: { color: colors.ink, fontSize: 19, fontWeight: '800', marginVertical: 9 },
-  item: { marginBottom: 8 },
+  sectionTitle: { ...editorialTitle, color: colors.ink, fontSize: 25, marginTop: 16, marginBottom: 9 },
+  item: { marginBottom: 12 },
 });

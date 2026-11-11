@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { testDatabase } from './support/testDatabase.mjs';
+import { loadProject } from './support/loadProject.mjs';
 
 const yogurt = { name: 'Iaurt', category: 'Lactate', expirationDate: '2026-11-18', quantity: 5 };
 const projectFields = ({ name, category, expirationDate, quantity }) => ({ name, category, expirationDate, quantity });
@@ -248,4 +249,36 @@ test('rolls back additions and quantity changes if recording their events fails'
   assert.deepEqual(await db.getActiveFoods(), [lot]);
   assert.deepEqual(await db.getHistoryFoods(), []);
   assert.deepEqual((await db.getInventoryActivity()).map(({ type }) => type), ['added']);
+});
+
+test('checks the native host before loading SQLite and reports incomplete package exports', async (t) => {
+  const requireOptionalNativeModule = t.mock.fn(() => null);
+  let imports = 0;
+  const database = loadProject('src/services/foodDatabase.ts', {
+    expo: { requireOptionalNativeModule },
+    get 'expo-sqlite'() {
+      imports++;
+      return {};
+    },
+  });
+  assert.equal(requireOptionalNativeModule.mock.callCount(), 0);
+  await assert.rejects(database.getActiveFoods(), /Cannot find native module 'ExpoSQLite'/);
+  await assert.rejects(database.checkNativeSQLite(), /Cannot find native module 'ExpoSQLite'/);
+  assert.deepEqual(requireOptionalNativeModule.mock.calls.map(({ arguments: args }) => args), [
+    ['ExpoSQLite'], ['ExpoSQLite'],
+  ]);
+  assert.equal(imports, 0);
+
+  requireOptionalNativeModule.mock.mockImplementation(() => ({}));
+  await assert.rejects(database.getActiveFoods(), /Pachetul expo-sqlite nu a putut fi încărcat/);
+  assert.equal(imports, 1);
+});
+
+test('SQLite smoke check exercises CRUD on a separate in-memory connection', async (t) => {
+  const { db, inspect, openDatabaseAsync } = testDatabase(t);
+  await db.addFood(yogurt);
+  assert.match(await db.checkNativeSQLite(), /^\d+\.\d+/);
+  assert.deepEqual(openDatabaseAsync.mock.calls[1].arguments, [':memory:', { useNewConnection: true }]);
+  assert.deepEqual((await db.getActiveFoods()).map(projectFields), [yogurt]);
+  assert.equal(inspect().prepare("SELECT name FROM sqlite_master WHERE name = 'native_check'").get(), undefined);
 });
